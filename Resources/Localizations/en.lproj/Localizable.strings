@@ -168,7 +168,7 @@
 "上一步" = "Back";
 "把微信的转发菜单接到你要去的地方" = "Point WeChat’s forward menu at where you work";
 "把微信里的聊天记录压缩包接住，再拖给任何一个 App。" = "Dukou catches the chat archive WeChat hands over, ready for you to drag into any app.";
-"转发到其他应用" = "Forward to Another App";
+"其他应用" = "Other Apps";
 "暂存到渡口，再拖到任何地方" = "Stash it in Dukou, then drag it anywhere";
 "用「暂存到渡口」转发过来的文件，都停在这个方块上。" = "Everything forwarded through Stash in Dukou waits on this one square.";
 "可以叠加：连续暂存几次，都会摞在同一个架子上，右上角的数字就是件数。" = "They stack: stash several times over and it all piles onto one shelf, with the count in the corner.";
@@ -181,7 +181,7 @@
 "可以先跳过，第一次转发失败时 Dukou 会再引导一次。" = "You can skip this — Dukou will offer to walk you through it the first time a forward fails.";
 "稍后再说" = "Later";
 "好了" = "All set";
-"去微信多选聊天记录 → 转发到其他应用，就能看到这些入口了。" = "In WeChat, select chats → Forward to Another App, and these entries will be waiting.";
+"去微信多选聊天记录 → 合并转发 → 其他应用，就能看到这些入口了。" = "In WeChat, select chats → Merge Forward → Other Apps, and these entries will be waiting.";
 /* Quick WeChat Forward */
 "%.1f 秒" = "%.1f s";
 "%@（未运行）" = "%@ (not running)";
@@ -241,7 +241,7 @@
 "正在加载更早的聊天记录 · 已加载 %d 条" = "Loading earlier messages · %d loaded";
 "正在加载更早的聊天记录…" = "Loading earlier chat messages…";
 "正在选择并导出消息 · 已完成约 %d 条" = "Selecting and exporting messages · about %d complete";
-"没有定位到“转发到其他应用”按钮，已停止。请保持微信转发窗口完整可见。" = "Could not locate Forward to Other Apps. Keep the entire WeChat forward window visible and try again.";
+"没有定位到“其他应用”按钮，已停止。请保持微信转发窗口完整可见。" = "Could not locate Other Apps. Keep the entire WeChat forward window visible and try again.";
 "这个转发界面需要识别按钮位置。请在系统设置中为渡口开启屏幕录制权限后重试。" = "This forward layout needs visual button recognition. Enable Screen Recording for Dukou in System Settings and try again.";
 "按时间选取暂未开放，请改用条数。" = "Time ranges are not available yet. Select a message count instead.";
 "改用条数" = "Use message count";

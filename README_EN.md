@@ -28,7 +28,7 @@
 
 Since WeChat 4.1.13 for macOS, a multi-selection of chat history can be merge-forwarded to third-party apps: WeChat itself packs the text, images and videos into one ZIP with a time-ordered TXT transcript. That is exactly what an AI agent needs to read a complete stream of a conversation, and it involves no database and no keys: the content only ever travels as the file WeChat exported.
 
-The catch is that the "forward to other apps" list only shows apps that ship a share extension. Finder is not there, nor Terminal, nor Codex or Claude. Dukou puts them there. The forward menu gains five entries, and each one goes straight where it says:
+The catch is that the "Other Apps" list in the forward window ("Forward to Other Apps" in WeChat 4.1.13) only shows apps that ship a share extension. Finder is not there, nor Terminal, nor Codex or Claude. Dukou puts them there. The forward menu gains five entries, and each one goes straight where it says:
 
 | Entry | What it does |
 |---|---|
@@ -87,7 +87,7 @@ Download the latest `Dukou-*.dmg` from [Releases](https://github.com/qzz0518/Duk
 
 1. Open Dukou. A four-step guide walks you through switching on the entries you want. A freshly installed share extension is **registered but disabled** until you switch it on.
 2. Grant Accessibility if you want automated pasting. Skipping is fine; Dukou guides you again the first time a forward fails.
-3. In WeChat, select messages → forward to other apps → pick the entry.
+3. In WeChat, select messages → Merge Forward → Other Apps → pick the entry.
 
 ## Known issue
 

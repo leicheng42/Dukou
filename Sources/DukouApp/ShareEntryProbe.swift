@@ -128,8 +128,9 @@ final class ShareEntryProbe: ObservableObject {
         attributes: .concurrent
     )
 
-    /// Blocking; called only from `queue`.
-    private nonisolated static func probe(_ identifier: String) -> ShareEntryState {
+    /// Blocking: called from `queue`, and from the WeChat worker before an
+    /// export.
+    nonisolated static func probe(_ identifier: String) -> ShareEntryState {
         guard let result = run(["-m", "-i", identifier]), result.status == 0 else {
             return .unregistered
         }

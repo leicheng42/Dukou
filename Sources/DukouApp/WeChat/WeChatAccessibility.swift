@@ -22,7 +22,7 @@ enum WeChatAutomationError: Error, LocalizedError {
         case .selection: L10n.text("无法准确选中这一批消息，已停止。请缩小范围后重试。")
         case .loading: L10n.text("微信消息列表尚未稳定。请等待加载完成后重试。")
         case .screenRecording: L10n.text("这个转发界面需要识别按钮位置。请在系统设置中为渡口开启屏幕录制权限后重试。")
-        case .unsupportedLayout: L10n.text("没有定位到“转发到其他应用”按钮，已停止。请保持微信转发窗口完整可见。")
+        case .unsupportedLayout: L10n.text("没有定位到“其他应用”按钮，已停止。请保持微信转发窗口完整可见。")
         case .missingShare: L10n.text("没有找到「暂存到渡口」分享入口。请在设置的「入口」中启用它。")
         case .ambiguousReceipt: L10n.text("同时收到了多次分享，无法确认本次文件，已停止自动粘贴。")
         case .receiptTimeout: L10n.text("等待微信导出超时。已收到的文件会保留在暂存架。")
@@ -1312,7 +1312,11 @@ final class WeChatAccessibility {
         throw WeChatAutomationError.unsupportedLayout
     }
 
-    /// Where 转发到其他应用 is, from the shape of the list it lives in.
+    /// What WeChat calls the row that hands a forward to another app: 转发到其他应用
+    /// up to 4.1.13, 其他应用 from 4.1.15.
+    private static let externalShareLabels = ["其他应用", "转发到其他应用"]
+
+    /// Where 其他应用 is, from the shape of the list it lives in.
     ///
     /// The row sits in the recipient list, below whatever promotions WeChat is
     /// showing and above the contacts. There is one promotion per companion app
@@ -1329,9 +1333,13 @@ final class WeChatAccessibility {
     /// one, however many strips are stacked above it — checked against this
     /// machine, where it lands on exactly the point the old offset computed.
     ///
-    /// Horizontally the row is 最近聊天 | 创建聊天 | 转发到其他应用 and this is
-    /// the third of them, 245 points into the 320 the list is wide. That
-    /// proportion does not move with the promotions; only the row does.
+    /// Horizontally the row is 最近聊天 | 创建聊天 | 其他应用 and this is the
+    /// third of them. On 4.1.13 the text of 转发到其他应用 spans 0.62–0.95 of a
+    /// 320-point list; 4.1.15 widened the list to 344 and shortened the label,
+    /// whose button spans 258–320, or 0.75–0.93. The old 0.766 hit that button 5
+    /// points from its left edge. 0.84 is the middle of where the two bands
+    /// overlap, 34 points short of the end of the longer label. The proportion
+    /// does not move with the promotions; only the row does.
     private func externalShareRow(in nodes: [WCNode]) -> CGPoint? {
         guard let list = nodes.first(where: { $0.id == "sp_to_select_contact_list" }), !list.rect.isEmpty else { return nil }
         // Only the head of the list matters, and reading every contact would be
@@ -1342,10 +1350,10 @@ final class WeChatAccessibility {
         guard let firstNamed = rows.firstIndex(where: { !$0.strings.isEmpty }), firstNamed > 0 else { return nil }
         let tabs = rows[firstNamed - 1]
         guard tabs.rect.width > 0, list.rect.contains(tabs.rect) else { return nil }
-        return CGPoint(x: tabs.rect.minX + tabs.rect.width * 0.766, y: tabs.rect.midY)
+        return CGPoint(x: tabs.rect.minX + tabs.rect.width * 0.84, y: tabs.rect.midY)
     }
 
-    /// Where 转发到其他应用 is, read off the sheet.
+    /// Where 其他应用 is, read off the sheet.
     ///
     /// WeChat draws this row itself: it is in neither of the two conversations
     /// this has been tried against, by role or by text, so there is nothing to
@@ -1391,21 +1399,74 @@ final class WeChatAccessibility {
         guard process.terminationStatus == 0 else { throw WeChatAutomationError.unsupportedLayout }
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        // One fixed Chinese label. Latin script and the language model that
+        // Fixed Chinese labels. Latin script and the language model that
         // second-guesses words are both work for a phrase that is either there
         // exactly or is not the one being looked for.
         request.recognitionLanguages = ["zh-Hans"]
         request.usesLanguageCorrection = false
-        request.customWords = ["转发到其他应用"]
+        request.customWords = Self.externalShareLabels
         try VNImageRequestHandler(url: url).perform([request])
         let matches = (request.results ?? []).filter { observation in
-            observation.topCandidates(3).contains { $0.string.filter { !$0.isWhitespace } == "转发到其他应用" }
+            observation.topCandidates(3).contains { Self.externalShareLabels.contains($0.string.filter { !$0.isWhitespace }) }
         }
         guard matches.count == 1, let match = matches.first,
               try recipientSheet().0.rect == sheet.rect else { throw WeChatAutomationError.unsupportedLayout }
         visualMilliseconds += (clock() - started) * 1000
         locator = "cropped-vision"
         return CGPoint(x: crop.minX + match.boundingBox.midX * crop.width, y: crop.minY + (1 - match.boundingBox.midY) * crop.height)
+    }
+
+    private func shareEntry(in nodes: [WCNode]) -> WCNode? {
+        control("暂存到渡口", in: nodes) ?? control("添加到 Dukou", in: nodes) ?? control("Stash in Dukou", in: nodes)
+    }
+
+    /// Dukou's row in whatever 其他应用 opened.
+    ///
+    /// 4.1.13 opens a short menu first — a promotion or two above 选择电脑中的应用,
+    /// whose submenu is the list of apps. 4.1.15 dropped that layer and lists the
+    /// apps straight away, so waiting for 选择电脑中的应用 there timed out with
+    /// Dukou's row already on screen (issue #10). Every scan looks for both, and
+    /// whichever turns up decides: neither build waits out the other's timeout.
+    private func waitShareEntry() throws -> WCNode {
+        let started = clock()
+        var deadline = started + 4
+        var submenu = false
+        repeat {
+            try frontmost()
+            let nodes = try scan()
+            if let share = shareEntry(in: nodes) { return share }
+            if !submenu {
+                guard chatMatches(nodes) else { throw WeChatAutomationError.focusChanged }
+                // The loose match only once the strict one has had the two
+                // seconds `waitControl` always gave it: that one has been
+                // verified against this UI.
+                var more = control("选择电脑中的应用", in: nodes)
+                if more == nil, clock() - started >= 2, let relaxed = looseControl("选择电脑中的应用", in: nodes) {
+                    locator = locator.isEmpty ? "loose-control" : locator + "+loose-control"
+                    more = relaxed
+                }
+                if let more {
+                    try press(more)
+                    submenu = true
+                    deadline = clock() + 4
+                }
+            }
+            try pause(0.02)
+        } while clock() < deadline
+        if submenu { throw WeChatAutomationError.missingShare }
+        recordControlFailure("暂存到渡口")
+        throw WeChatAutomationError.control("暂存到渡口")
+    }
+
+    /// 确定 on the sheet 4.1.15 puts up once Dukou's row is pressed —
+    /// 即将离开微信，打开其他应用 — without which nothing is handed over and the
+    /// receipt wait runs out. AXPress on its buttons reports success and changes
+    /// nothing, so it is clicked where it is drawn.
+    private func leaveConfirmation(in nodes: [WCNode]) -> WCNode? {
+        guard let prompt = nodes.first(where: { $0.role == "AXStaticText" && $0.strings.contains { $0.hasPrefix("即将离开微信") } }),
+              let sheet = nodes.first(where: { $0.role == "AXSheet" && $0.rect.contains(prompt.rect) }) else { return nil }
+        let ok = nodes.filter { $0.role == "AXButton" && $0.enabled && sheet.rect.contains($0.rect) && $0.strings.contains("确定") }
+        return ok.count == 1 ? ok.first : nil
     }
 
     private func readyIDs(at ready: URL) throws -> Set<String> {
@@ -1437,12 +1498,17 @@ final class WeChatAccessibility {
         let baseline = try ids()
         let installed = Bundle(url: shelfExtension)
         guard installed?.bundleIdentifier == "dev.dukou.Dukou.Share", installed?.object(forInfoDictionaryKey: "DKShareAction") as? String == "shelf" else { throw WeChatAutomationError.missingShare }
+        // Switched off, the entry is installed but missing from WeChat's list,
+        // and on 4.1.15 that list opens with nothing to tell it from a missed
+        // click. Only a definite off stops here: a pkd too slow to answer is no
+        // reason to refuse a forward that would have worked.
+        guard ShareEntryProbe.probe("dev.dukou.Dukou.Share") != .disabled else { throw WeChatAutomationError.missingShare }
         try press(try waitControl("合并转发"))
         _ = try waitControl("取消")
         let sheetNodes = try scan()
         // Worth asking twice before falling back to geometry: whatever the row
         // is dressed as, being able to press it directly beats aiming at it.
-        if let external = control("转发到其他应用", in: sheetNodes) ?? looseControl("转发到其他应用", in: sheetNodes) {
+        if let external = Self.externalShareLabels.compactMap({ control($0, in: sheetNodes) ?? looseControl($0, in: sheetNodes) }).first {
             locator = "accessibility"
             try press(external)
         } else if let row = externalShareRow(in: sheetNodes) {
@@ -1457,20 +1523,21 @@ final class WeChatAccessibility {
             try click(try externalSharePoint(sheet))
         }
         // Never retry a possibly successful click. Verify the next UI state.
-        try press(try waitControl("选择电脑中的应用"))
-        var share: WCNode?
-        let deadline = clock() + 4
-        repeat {
-            try frontmost()
-            let menu = try scan()
-            share = control("暂存到渡口", in: menu) ?? control("添加到 Dukou", in: menu) ?? control("Stash in Dukou", in: menu)
-            if share != nil { break }
-            try pause(0.02)
-        } while clock() < deadline
-        guard let share else { throw WeChatAutomationError.missingShare }
-        try press(share)
+        try press(try waitShareEntry())
+        var confirmed = false, lastLook = 0.0
         let receiptDeadline = clock() + 45
         repeat {
+            // Looked for every quarter second rather than every turn: this loop
+            // also waits out WeChat packing a large export, and older builds
+            // never ask at all.
+            if !confirmed, clock() - lastLook >= 0.25 {
+                lastLook = clock()
+                if let ok = leaveConfirmation(in: try scan()) {
+                    try click(CGPoint(x: ok.rect.midX, y: ok.rect.midY))
+                    steps.append(["kind": "leave-confirmation"])
+                    confirmed = true
+                }
+            }
             let candidates = try ids().subtracting(baseline)
             guard candidates.count <= 1 else { throw WeChatAutomationError.ambiguousReceipt }
             if let id = candidates.first {

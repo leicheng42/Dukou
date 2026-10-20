@@ -233,7 +233,7 @@ struct OnboardingFlow: View {
                 .foregroundStyle(Theme.ink)
                 .padding(.top, 24)
 
-            Text(L10n.text("去微信多选聊天记录 → 转发到其他应用，就能看到这些入口了。"))
+            Text(L10n.text("去微信多选聊天记录 → 合并转发 → 其他应用，就能看到这些入口了。"))
                 .font(.system(size: 15))
                 .foregroundStyle(Theme.inkSecondary)
                 .frame(maxWidth: 520, alignment: .leading)
@@ -323,7 +323,7 @@ private struct StepFooter: View {
 private struct ShareMenuArt: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(L10n.text("转发到其他应用"))
+            Text(L10n.text("其他应用"))
                 .font(Typo.captionStrong)
                 .foregroundStyle(Theme.inkTertiary)
                 .padding(.horizontal, 12)
