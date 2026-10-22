@@ -115,8 +115,68 @@ final class ForwardArchiveNameTests: XCTestCase {
         XCTAssertEqual(name, "记录_导出20260908-220000_1条.zip")
     }
 
-    private func make(_ source: String, count: Int?, start: Date? = nil, end: Date? = nil) -> String {
-        ForwardArchiveName.make(source: source, count: count, start: start, end: end, exportedAt: exportedAt, timeZone: utc)
+    func testTemplateRearrangesPartsAroundLiteralText() {
+        let first = date("2026-09-08T09:10:00Z")
+        let last = date("2026-09-08T21:30:00Z")
+        XCTAssertEqual(make("研发群", count: 300, start: first, end: last, template: "微信-{名称}-{日期}"), "微信-研发群-20260908.zip")
+        XCTAssertEqual(make("研发群", count: 300, start: first, end: last, template: "{条数}_{名称}_{时间}"),
+                       "300条_研发群_20260908-0910至20260908-2130.zip")
+        XCTAssertEqual(make("研发群", count: 300, template: "{名称}{未知}"), "研发群{未知}.zip")
+    }
+
+    func testEmptyOrUnusableTemplatesFallBackToTheDefault() {
+        for template in ["", "   ", "\n", "...", "///", ".zip", " _._ "] {
+            XCTAssertEqual(make("群名", count: 2, template: template), "群名_导出20260908-220000_2条.zip", template.debugDescription)
+        }
+    }
+
+    func testTemplateKeepsTheExtensionAndBatchNumberItsOwn() {
+        XCTAssertEqual(make("群名", count: 1, template: "{名称}.zip"), "群名.zip")
+        XCTAssertEqual(make("群名", count: 1, template: "{名称}.ZIP"), "群名.zip")
+        XCTAssertEqual(make("群名", count: 1, part: 2, template: "{名称}"), "群名_第2批.zip")
+        XCTAssertEqual(make("群名", count: 1, part: 2, template: "聊天记录"), "聊天记录_第2批.zip")
+    }
+
+    func testTemplateTextIsSanitizedLikeTheName() {
+        let forbidden = CharacterSet(charactersIn: "/\\:<>\"'`|?*%")
+        for template in ["../{名称}", "a/b:{名称}", ".hidden{名称}", "{名称}\n\u{202E}gpj", "C:\\{名称}"] {
+            let name = make("群名", count: 1, template: template)
+            XCTAssertFalse(name.hasPrefix("."), template.debugDescription)
+            XCTAssertFalse(name.unicodeScalars.contains {
+                forbidden.contains($0)
+                    || [.control, .format, .lineSeparator, .paragraphSeparator].contains($0.properties.generalCategory)
+            }, template.debugDescription)
+            XCTAssertTrue(name.contains("群名") && name.hasSuffix(".zip"), template.debugDescription)
+        }
+        XCTAssertEqual(make("群名", count: 1, template: "a / b {名称}"), "a_b_群名.zip")
+        XCTAssertEqual(make("群名", count: 1, template: "CON"), "_CON.zip")
+        XCTAssertEqual(make("群名", count: 1, template: "nul.{名称}"), "_nul.群名.zip")
+    }
+
+    func testAChatNamedLikeAPlaceholderStaysItsName() {
+        XCTAssertEqual(make("{日期}", count: 1, template: "{名称}"), "{日期}.zip")
+        XCTAssertEqual(make("{条数}", count: 1), "{条数}_导出20260908-220000_1条.zip")
+    }
+
+    func testLongNamesGiveWayToTheRestOfATemplate() {
+        let source = String(repeating: "研究群🌅", count: 200)
+        let name = make(source, count: 1, part: 3, template: "{名称}_{日期}")
+        XCTAssertLessThanOrEqual(name.utf8.count, 200)
+        XCTAssertTrue(name.hasSuffix("…_20260908_第3批.zip"))
+
+        let twice = make(source, count: 1, template: "{名称}-{名称}-{条数}")
+        XCTAssertLessThanOrEqual(twice.utf8.count, 200)
+        XCTAssertTrue(twice.hasSuffix("…-1条.zip"))
+
+        let literal = make("群名", count: 1, part: 9, template: String(repeating: "很长", count: 100) + "{名称}")
+        XCTAssertLessThanOrEqual(literal.utf8.count, 200)
+        XCTAssertTrue(literal.hasSuffix("…_第9批.zip"))
+    }
+
+    private func make(_ source: String, count: Int?, start: Date? = nil, end: Date? = nil,
+                      part: Int? = nil, template: String = ForwardArchiveName.defaultTemplate) -> String {
+        ForwardArchiveName.make(source: source, count: count, start: start, end: end, part: part,
+                                exportedAt: exportedAt, timeZone: utc, template: template)
     }
 
     private func date(_ value: String) -> Date { ISO8601DateFormatter().date(from: value)! }

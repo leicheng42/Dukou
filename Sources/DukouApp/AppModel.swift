@@ -212,13 +212,15 @@ final class AppModel: ObservableObject {
     /// file's URL: renaming after the paste would hand the target a dead path.
     private func nameThenAnnounce(_ batch: ReadyBatch, reader: InboxReader) {
         let original = batch.items[0].url
+        let nameTemplate = preferences.archiveNameTemplate
         Task { [weak self] in
             let chat: String? = await withCheckedContinuation { continuation in
                 Self.chatNameWorker.async {
                     let chat = try? WeChatAccessibility.currentChat()
                     if let chat, !chat.isEmpty {
                         try? WeChatExportArchive.rename(
-                            batch, chat: chat, fallbackCount: nil, exportedAt: batch.createdAt, requiringRecords: true
+                            batch, chat: chat, fallbackCount: nil, exportedAt: batch.createdAt, nameTemplate: nameTemplate,
+                            requiringRecords: true
                         )
                     }
                     continuation.resume(returning: chat)

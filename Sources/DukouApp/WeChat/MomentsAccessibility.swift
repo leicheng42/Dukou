@@ -96,7 +96,7 @@ final class MomentsAccessibility {
         AXUIElementSetMessagingTimeout(root, 0.7)
     }
 
-    func capture(_ preset: MomentsForwardPreset, inbox: Inbox) throws -> MomentsCapture {
+    func capture(_ preset: MomentsForwardPreset, inbox: Inbox, nameTemplate: String) throws -> MomentsCapture {
         guard preset.isValid else { throw MomentsAutomationError.empty }
         let work = FileManager.default.temporaryDirectory.appendingPathComponent("Dukou-Moments-" + UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
@@ -173,7 +173,8 @@ final class MomentsAccessibility {
         }
         try token.check()
         progress(L10n.text("正在打包朋友圈文字和媒体…"))
-        let directory = try MomentsArchive.create(records: records, mediaDirectory: work, in: inbox, checkCancellation: token.check)
+        let directory = try MomentsArchive.create(records: records, mediaDirectory: work, in: inbox, nameTemplate: nameTemplate,
+                                                  checkCancellation: token.check)
         return MomentsCapture(directory: directory, count: records.count, mediaCount: records.reduce(0) { $0 + $1.attachments.count },
                               incomplete: !completeRange, missingMedia: missingMedia)
     }

@@ -142,13 +142,14 @@ final class MomentsQuickForward: ObservableObject {
                 }
             }
             model.deferIntake(); shelf.suspendPresentation(); intakeDeferred = true
+            let nameTemplate = preferences.archiveNameTemplate
             let capture: MomentsCapture = try await withCheckedThrowingContinuation { continuation in
                 Self.worker.async {
                     continuation.resume(with: Result {
                         let engine = try MomentsAccessibility(cancellation: token) { [weak self] message in
                             DispatchQueue.main.async { self?.status = message }
                         }
-                        return try engine.capture(preset, inbox: inbox)
+                        return try engine.capture(preset, inbox: inbox, nameTemplate: nameTemplate)
                     })
                 }
             }

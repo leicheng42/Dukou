@@ -99,6 +99,14 @@
 "7 天" = "7 days";
 "30 天" = "30 days";
 "从不" = "Never";
+"导出文件名" = "Export File Name";
+"恢复默认" = "Restore Default";
+"例：%@" = "Example: %@";
+"群名；朋友圈为「某某的朋友圈」" = "The chat's name; for Moments, whose Moments they are";
+"消息的起止时间，读不到时为导出时间" = "When the first and last messages were sent, or the export time if they cannot be read";
+"导出当天的日期" = "The date of the export";
+"消息条数" = "How many messages";
+"研发群" = "Team";
 "设置向导" = "Setup guide";
 "重新运行设置向导" = "Run the setup guide again";
 "重新运行" = "Run Again";

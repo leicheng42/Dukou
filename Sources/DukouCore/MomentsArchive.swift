@@ -48,12 +48,13 @@ public enum MomentsArchive {
         in inbox: Inbox,
         exportedAt: Date = Date(),
         timeZone: TimeZone = .current,
+        nameTemplate: String = ForwardArchiveName.defaultTemplate,
         checkCancellation: () throws -> Void = {}
     ) throws -> URL {
         try checkCancellation()
         guard !records.isEmpty else { throw Failure.invalidRecordCount }
         let generatedAt = exportedAt
-        let archiveName = displayName(for: records, exportedAt: generatedAt, timeZone: timeZone)
+        let archiveName = displayName(for: records, exportedAt: generatedAt, timeZone: timeZone, template: nameTemplate)
         let names = try referencedNames(in: records, checkCancellation: checkCancellation)
         let staging = try makeStaging(in: inbox)
         // After commit the old path no longer exists. Never remove from Ready.
@@ -101,7 +102,8 @@ public enum MomentsArchive {
     public static func displayName(
         for records: [MomentsRecord],
         exportedAt: Date = Date(),
-        timeZone: TimeZone = .current
+        timeZone: TimeZone = .current,
+        template: String = ForwardArchiveName.defaultTemplate
     ) -> String {
         let author = records.first?.author ?? ""
         let trimmedAuthor = author.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -113,7 +115,7 @@ public enum MomentsArchive {
             source: source, count: records.count,
             start: completeRange ? dates.min() : nil,
             end: completeRange ? dates.max() : nil,
-            exportedAt: exportedAt, timeZone: timeZone
+            exportedAt: exportedAt, timeZone: timeZone, template: template
         )
     }
 

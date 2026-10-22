@@ -52,6 +52,17 @@ final class WeChatExportArchiveTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: original.items[0].url.path))
     }
 
+    func testRenamingAndMergingFollowTheNameTemplate() throws {
+        let text = Data("·甲\n2026年9月8日 11:25\n正文\n".utf8)
+        let first = try batch([("聊天记录.txt", text)])
+        let second = try batch([("聊天记录.txt", text)])
+        let ready = try WeChatExportArchive.merge([first, second], chat: "测试群", fallbackCounts: [1, 1], in: temporary.inbox,
+                                                  nameTemplate: "{名称}-{条数}")
+        XCTAssertEqual(InboxReader(inbox: temporary.inbox).batch(at: ready)?.items.first?.displayName, "测试群-2条.zip")
+        try WeChatExportArchive.rename(first, chat: "测试群", fallbackCount: 1, part: 1, nameTemplate: "{名称}")
+        XCTAssertEqual(InboxReader(inbox: temporary.inbox).batch(at: first.directory)?.items.first?.displayName, "测试群_第1批.zip")
+    }
+
     func testUnknownTextAndAttachmentOnlyFormatsStillMergeWithoutBeingDiscarded() throws {
         let future = Data("新版格式\n[未知卡片]\n内容照常保留".utf8)
         let first = try batch([("聊天记录.txt", future), ("contact.vcf", Data("future card".utf8))])

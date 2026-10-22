@@ -274,6 +274,7 @@ final class WeChatQuickForward: ObservableObject {
             let merging = (preset.mergeArchives || preset.savesMarkdown) && originals.count > 1
             let removingMedia = !preset.saveImages || !preset.saveVideos
             let repackaging = merging || preset.htmlPreview || preset.savesMarkdown || removingMedia
+            let nameTemplate = preferences.archiveNameTemplate
             status = preset.savesMarkdown ? L10n.text("正在生成 Markdown…") : preset.htmlPreview ? L10n.text("正在生成 HTML 预览…")
                 : merging ? L10n.text("正在合并聊天记录…") : removingMedia ? L10n.text("正在整理聊天记录…") : L10n.text("正在整理文件名…")
             let preparedDirectories: [URL] = try await withCheckedThrowingContinuation { continuation in
@@ -282,7 +283,7 @@ final class WeChatQuickForward: ObservableObject {
                         try WeChatExportArchive.prepare(originals, chat: preset.chat, fallbackCounts: counts,
                                                         mergeArchives: preset.mergeArchives, htmlPreview: preset.htmlPreview, markdown: preset.savesMarkdown,
                                                         saveImages: preset.saveImages, saveVideos: preset.saveVideos, in: inbox, selfSender: capture.selfSender, exportedAt: requestedAt,
-                                                        checkCancellation: token.check)
+                                                        nameTemplate: nameTemplate, checkCancellation: token.check)
                     })
                 }
             }

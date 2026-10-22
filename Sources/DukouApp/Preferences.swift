@@ -46,6 +46,7 @@ final class Preferences: ObservableObject {
         static let prompt = "dev.dukou.attachedPrompt"
         static let chatMemory = "dev.dukou.chatMemory"
         static let showDockIcon = "dev.dukou.showDockIcon"
+        static let archiveNameTemplate = "dev.dukou.archiveNameTemplate"
     }
 
     /// A week: long enough that last Friday's chat export is still there on
@@ -72,6 +73,7 @@ final class Preferences: ObservableObject {
             .flatMap { try? JSONDecoder().decode(ShelfAnchor.self, from: $0) }
         hasShownShelfCoachMark = defaults.bool(forKey: Key.hasShownShelfCoachMark)
         showDockIcon = defaults.object(forKey: Key.showDockIcon) as? Bool ?? true
+        archiveNameTemplate = defaults.string(forKey: Key.archiveNameTemplate) ?? ForwardArchiveName.defaultTemplate
         // Seeded in the app's language on first read. The default text is a
         // starting point the user is expected to rewrite, not a resource that
         // follows the system language afterwards.
@@ -134,6 +136,12 @@ final class Preferences: ObservableObject {
     /// any other app is. Off returns it to a menu-bar-only app.
     @Published var showDockIcon: Bool {
         didSet { defaults.set(showDockIcon, forKey: Key.showDockIcon) }
+    }
+
+    /// How exported chat and Moments ZIPs are named. Read when an export
+    /// starts; an empty template names it the default way.
+    @Published var archiveNameTemplate: String {
+        didSet { defaults.set(archiveNameTemplate, forKey: Key.archiveNameTemplate) }
     }
 
     /// The 附加 Prompt library, its selection, and the switch for each

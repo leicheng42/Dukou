@@ -95,6 +95,29 @@ struct GeneralPane: View {
                 }
             }
 
+            SettingsSection(title: L10n.text("导出文件名"), systemImage: "doc.zipper", spacing: Space.s) {
+                TextField(ForwardArchiveName.defaultTemplate, text: $preferences.archiveNameTemplate)
+                    .textFieldStyle(SettingsTextFieldStyle())
+                    .accessibilityLabel(Text(L10n.text("导出文件名")))
+                    .accessibilityIdentifier("general.archiveName")
+                HStack(spacing: Space.s) {
+                    ForEach(Self.tokens, id: \.token) { item in
+                        Button(item.token.rawValue) { preferences.archiveNameTemplate += item.token.rawValue }
+                            .buttonStyle(SettingsActionButtonStyle(width: nil))
+                            .help(item.help)
+                    }
+                    Spacer(minLength: Space.s)
+                    if preferences.archiveNameTemplate != ForwardArchiveName.defaultTemplate {
+                        Button(L10n.text("恢复默认")) { preferences.archiveNameTemplate = ForwardArchiveName.defaultTemplate }
+                            .buttonStyle(SettingsActionButtonStyle())
+                    }
+                }
+                Text(L10n.format("例：%@", example))
+                    .font(Typo.paneCaption).foregroundStyle(Theme.inkSecondary)
+                    .lineLimit(2).truncationMode(.middle)
+                    .accessibilityIdentifier("general.archiveNameExample")
+            }
+
             // The same section AutoCodeBar has, in the same place: the switch
             // Sparkle reads for its daily check, and the version with a way to
             // check right now. 关于 repeats the button beside the version pill.
@@ -132,5 +155,25 @@ struct GeneralPane: View {
                 }
             }
         }
+    }
+
+    private static let tokens: [(token: ForwardArchiveName.Token, help: String)] = [
+        (.name, L10n.text("群名；朋友圈为「某某的朋友圈」")),
+        (.time, L10n.text("消息的起止时间，读不到时为导出时间")),
+        (.date, L10n.text("导出当天的日期")),
+        (.count, L10n.text("消息条数")),
+    ]
+
+    /// The current template applied to a made-up chat, so a change shows its
+    /// result before an export does.
+    private var example: String {
+        let calendar = Calendar.current
+        let now = Date()
+        return ForwardArchiveName.make(
+            source: L10n.text("研发群"), count: 300,
+            start: calendar.date(bySettingHour: 9, minute: 10, second: 0, of: now),
+            end: calendar.date(bySettingHour: 21, minute: 30, second: 0, of: now),
+            template: preferences.archiveNameTemplate
+        )
     }
 }

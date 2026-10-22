@@ -20,12 +20,13 @@ public enum WeChatExportArchive {
     public static func prepare(_ batches: [ReadyBatch], chat: String, fallbackCounts: [Int],
                                mergeArchives: Bool, htmlPreview: Bool, markdown: Bool = false,
                                saveImages: Bool = true, saveVideos: Bool = true, in inbox: Inbox,
-                               selfSender: String? = nil, exportedAt: Date = Date(), checkCancellation: () throws -> Void = {}) throws -> [URL] {
+                               selfSender: String? = nil, exportedAt: Date = Date(), nameTemplate: String = ForwardArchiveName.defaultTemplate,
+                               checkCancellation: () throws -> Void = {}) throws -> [URL] {
         guard !batches.isEmpty, batches.count == fallbackCounts.count else { throw Failure.mergeFailed }
         if (mergeArchives && batches.count > 1) || markdown {
             return [try merge(batches, chat: chat, fallbackCounts: fallbackCounts, in: inbox, htmlPreview: htmlPreview, markdown: markdown,
                               saveImages: saveImages, saveVideos: saveVideos, selfSender: selfSender, exportedAt: exportedAt,
-                              checkCancellation: checkCancellation)]
+                              nameTemplate: nameTemplate, checkCancellation: checkCancellation)]
         }
         let repackaging = htmlPreview || !saveImages || !saveVideos
         var prepared: [URL] = []
@@ -36,10 +37,10 @@ public enum WeChatExportArchive {
                     prepared.append(try merge([batch], chat: chat, fallbackCounts: [fallbackCounts[index]], in: inbox,
                                               htmlPreview: htmlPreview, saveImages: saveImages, saveVideos: saveVideos,
                                               selfSender: selfSender, part: part, exportedAt: exportedAt,
-                                              checkCancellation: checkCancellation))
+                                              nameTemplate: nameTemplate, checkCancellation: checkCancellation))
                 } else {
                     try rename(batch, chat: chat, fallbackCount: fallbackCounts[index], part: part,
-                               exportedAt: exportedAt, checkCancellation: checkCancellation)
+                               exportedAt: exportedAt, nameTemplate: nameTemplate, checkCancellation: checkCancellation)
                     prepared.append(batch.directory)
                 }
             }
@@ -59,7 +60,8 @@ public enum WeChatExportArchive {
     /// forwards a single file message through the same menu, and a ZIP somebody
     /// sent in the chat is not a chat export to be named after the group.
     public static func rename(_ batch: ReadyBatch, chat: String, fallbackCount: Int?, part: Int? = nil, exportedAt: Date = Date(),
-                              requiringRecords: Bool = false, checkCancellation: () throws -> Void = {}) throws {
+                              nameTemplate: String = ForwardArchiveName.defaultTemplate, requiringRecords: Bool = false,
+                              checkCancellation: () throws -> Void = {}) throws {
         try checkCancellation()
         let (item, data) = try source(batch)
         let transcript: WeChatNativeArchive.Transcript?
@@ -68,7 +70,8 @@ public enum WeChatExportArchive {
         catch { transcript = nil }
         guard !requiringRecords || transcript?.records?.isEmpty == false else { return }
         let name = ForwardArchiveName.make(source: chat, count: transcript?.records?.count ?? fallbackCount,
-                                           start: transcript?.start, end: transcript?.end, part: part, exportedAt: exportedAt)
+                                           start: transcript?.start, end: transcript?.end, part: part, exportedAt: exportedAt,
+                                           template: nameTemplate)
         guard item.displayName != name else { return }
         let destination = item.url.deletingLastPathComponent().appendingPathComponent(name)
         let manifestURL = batch.directory.appendingPathComponent(BatchStaging.manifestFileName)
@@ -97,7 +100,8 @@ public enum WeChatExportArchive {
     /// Unsaved images and videos leave only their files; every message stays.
     public static func merge(_ batches: [ReadyBatch], chat: String, fallbackCounts: [Int], in inbox: Inbox,
                              htmlPreview: Bool = false, markdown: Bool = false, saveImages: Bool = true, saveVideos: Bool = true, selfSender: String? = nil, part: Int? = nil,
-                             exportedAt: Date = Date(), checkCancellation: () throws -> Void = {}) throws -> URL {
+                             exportedAt: Date = Date(), nameTemplate: String = ForwardArchiveName.defaultTemplate,
+                             checkCancellation: () throws -> Void = {}) throws -> URL {
         try checkCancellation()
         guard !batches.isEmpty, batches.count == fallbackCounts.count else { throw Failure.mergeFailed }
         let staging = try BatchStaging.create(in: inbox)
@@ -160,7 +164,7 @@ public enum WeChatExportArchive {
             try Data(note.utf8).write(to: payload.appendingPathComponent(WeChatMarkdown.fileName), options: .atomic)
         }
         let name = ForwardArchiveName.make(source: chat, count: count, start: allDatesKnown ? first : nil,
-                                           end: allDatesKnown ? last : nil, part: part, exportedAt: exportedAt)
+                                           end: allDatesKnown ? last : nil, part: part, exportedAt: exportedAt, template: nameTemplate)
         let itemID = UUID()
         let archive = try staging.destination(for: itemID, displayName: name)
         try compress(payload, to: archive, work: work, htmlPreview: htmlPreview, markdown: markdown, checkCancellation: checkCancellation)
