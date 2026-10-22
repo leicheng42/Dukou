@@ -54,6 +54,19 @@ if [ "${#ARCH_LIST[@]}" -eq 0 ]; then
 	exit 1
 fi
 
+MIN_MACOS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP_INFO")"
+SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
+# The Xcode 27 clang hands the linker the deployment target as the SDK
+# version, and ld then stamps Dukou as built against macOS 14. 0.1.16 shipped
+# that way: macOS ran it in its macOS 14 compatibility mode, in which SwiftUI
+# opened the empty `Settings` scene as a window on every launch. Name the real
+# SDK explicitly; ld takes the last -platform_version it is given. The same
+# fix as Charker's.
+LINK_SDK_FLAGS=(
+	-Xlinker -platform_version -Xlinker macos
+	-Xlinker "$MIN_MACOS" -Xlinker "$SDK_VERSION"
+)
+
 APP_BINARIES=()
 SHARE_BINARIES=()
 BIN_DIRS=()
@@ -63,12 +76,19 @@ for ARCH in "${ARCH_LIST[@]}"; do
 		*) echo "unsupported architecture: $ARCH" >&2; exit 1 ;;
 	esac
 	SCRATCH="$BUILD_ROOT/$ARCH"
-	swift build -c "$CONFIG" --triple "$ARCH-apple-macosx" --scratch-path "$SCRATCH" --product Dukou
-	swift build -c "$CONFIG" --triple "$ARCH-apple-macosx" --scratch-path "$SCRATCH" --product DukouShare
+	swift build -c "$CONFIG" --triple "$ARCH-apple-macosx" --scratch-path "$SCRATCH" --product Dukou "${LINK_SDK_FLAGS[@]}"
+	swift build -c "$CONFIG" --triple "$ARCH-apple-macosx" --scratch-path "$SCRATCH" --product DukouShare "${LINK_SDK_FLAGS[@]}"
 	BIN_DIR="$(swift build -c "$CONFIG" --triple "$ARCH-apple-macosx" --scratch-path "$SCRATCH" --show-bin-path)"
 	for PRODUCT in Dukou DukouShare; do
 		if [ ! -x "$BIN_DIR/$PRODUCT" ]; then
 			echo "missing $PRODUCT executable for $ARCH: $BIN_DIR/$PRODUCT" >&2
+			exit 1
+		fi
+		# The SDK version decides which behaviours macOS gives the app, and a
+		# wrong one builds, signs and notarizes without complaint.
+		LINKED_SDK="$(vtool -show-build "$BIN_DIR/$PRODUCT" | awk '$1 == "sdk" { print $2; exit }')"
+		if [ "$LINKED_SDK" != "$SDK_VERSION" ]; then
+			echo "$PRODUCT ($ARCH) is linked as SDK ${LINKED_SDK:-unknown}, not the macOS $SDK_VERSION SDK it was built with" >&2
 			exit 1
 		fi
 		if ! lipo -archs "$BIN_DIR/$PRODUCT" | tr ' ' '\n' | grep -Fxq "$ARCH"; then
